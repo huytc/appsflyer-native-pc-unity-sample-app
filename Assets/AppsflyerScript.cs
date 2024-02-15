@@ -1,7 +1,4 @@
 using UnityEngine;
-using System.Collections;
-using System.Text;
-using System;
 using System.Collections.Generic;
 
 public class AppsflyerScript : MonoBehaviour
@@ -13,7 +10,7 @@ public class AppsflyerScript : MonoBehaviour
     void Start()
     {
         // init the SDK
-        AppsflyerModule afm = new AppsflyerModule(DEV_KEY, APP_ID, this, IS_SANDBOX);
+        AppsflyerModule afm = new AppsflyerModule(DEV_KEY, APP_ID, "1.0.0", IS_SANDBOX);
 
         // set CUID
         afm.SetCustomerUserId("testTEST12345");

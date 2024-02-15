@@ -3,13 +3,10 @@ using System.Text;
 using UnityEngine;
 using Newtonsoft.Json;
 using UnityEngine.Networking;
-using System.Collections;
-using UnityEditor;
-using UnityEditor.PackageManager;
-using System.Linq;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 
 public class AppsflyerModule
 {
@@ -20,14 +17,15 @@ public class AppsflyerModule
     private string af_device_id { get; }
     private string cuid { get; set; }
     private bool isStopped { get; set; }
-    private MonoBehaviour mono { get; }
 
-    public AppsflyerModule(string devkey, string appid, MonoBehaviour mono, bool isSandbox = false)
+    private string app_version { get; }
+
+    public AppsflyerModule(string devkey, string appid, string app_version, bool isSandbox = false)
     {
         this.isSandbox = isSandbox;
         this.devkey = devkey;
         this.appid = appid;
-        this.mono = mono;
+        this.app_version = app_version;
         this.isStopped = true;
 
         this.af_counter = PlayerPrefs.GetInt("af_counter");
@@ -56,10 +54,10 @@ public class AppsflyerModule
 
         RequestData req = new RequestData
         {
-            timestamp = DateTimeOffset.Now.ToUnixTimeMilliseconds().ToString(),
+            timestamp = DateTimeOffset.Now.ToUnixTimeMilliseconds(),
             device_os_version = device_os_ver,
             device_model = SystemInfo.deviceModel,
-            app_version = "1.0.0", //TODO: Insert your app version
+            app_version = app_version,
             device_ids = deviceids,
             request_id = GenerateGuid(),
             limit_ad_tracking = false,
@@ -103,7 +101,7 @@ public class AppsflyerModule
                 : AppsflyerRequestType.SESSION_REQUEST;
 
         // post the request via Unity http client
-        mono.StartCoroutine(SendUnityPostReq(req, REQ_TYPE));
+        _ = SendUnityPostReq(req, REQ_TYPE);
     }
 
     public void Stop()
@@ -136,7 +134,7 @@ public class AppsflyerModule
         AppsflyerRequestType REQ_TYPE = AppsflyerRequestType.INAPP_EVENT_REQUEST;
 
         // post the request via Unity http client
-        mono.StartCoroutine(SendUnityPostReq(req, REQ_TYPE));
+        _ = SendUnityPostReq(req, REQ_TYPE);
     }
 
     public bool IsInstallOlderThanDate(string date)
@@ -175,7 +173,7 @@ public class AppsflyerModule
     }
 
     // send post request with Unity HTTP Client
-    private IEnumerator SendUnityPostReq(RequestData req, AppsflyerRequestType REQ_TYPE)
+    private async Task SendUnityPostReq(RequestData req, AppsflyerRequestType REQ_TYPE)
     {
         // serialize the json and remove empty fields
         string json = JsonConvert.SerializeObject(
@@ -183,7 +181,6 @@ public class AppsflyerModule
             Newtonsoft.Json.Formatting.None,
             new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore }
         );
-        // Debug.Log(json);
 
         // create auth token
         string auth = HmacSha256Digest(json, devkey);
@@ -232,7 +229,11 @@ public class AppsflyerModule
         );
 
         //Send the request then wait here until it returns
-        yield return uwr.SendWebRequest();
+        var operation = uwr.SendWebRequest();
+        while (!operation.isDone)
+        {
+            await Task.Yield();
+        }
 
         switch (REQ_TYPE)
         {
@@ -321,7 +322,7 @@ enum AppsflyerRequestType : ulong
 [Serializable]
 class RequestData
 {
-    public string timestamp;
+    public long timestamp;
     public string device_os_version;
     public string device_model;
     public string app_version;
