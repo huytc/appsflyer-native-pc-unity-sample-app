@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
-public class AppsflyerModule
+internal class AppsflyerModule
 {
     private bool isSandbox { get; }
     private string devkey { get; }
@@ -17,15 +17,20 @@ public class AppsflyerModule
     private string af_device_id { get; }
     private string cuid { get; set; }
     private bool isStopped { get; set; }
-
     private string app_version { get; }
+    private string device_model { get; }
+    private string device_os_ver { get; }
 
-    public AppsflyerModule(string devkey, string appid, string app_version, bool isSandbox = false)
+    public AppsflyerModule(string devkey, string appid, string app_version, 
+        string device_model, string device_os_ver, 
+        bool isSandbox = false)
     {
         this.isSandbox = isSandbox;
         this.devkey = devkey;
         this.appid = appid;
         this.app_version = app_version;
+        this.device_model = device_model;
+        this.device_os_ver = device_os_ver;
         this.isStopped = true;
 
         this.af_counter = PlayerPrefs.GetInt("af_counter");
@@ -49,14 +54,11 @@ public class AppsflyerModule
         DeviceIDs deviceid = new DeviceIDs { type = "custom", value = af_device_id };
         DeviceIDs[] deviceids = { deviceid };
 
-        string device_os_ver = SystemInfo.operatingSystem;
-        device_os_ver = TrimDeviceOsVer(device_os_ver);
-
         RequestData req = new RequestData
         {
             timestamp = DateTimeOffset.Now.ToUnixTimeMilliseconds(),
-            device_os_version = device_os_ver,
-            device_model = SystemInfo.deviceModel,
+            device_model = device_model,
+            device_os_version = TrimDeviceOsVer(device_os_ver),
             app_version = app_version,
             device_ids = deviceids,
             request_id = GenerateGuid(),
@@ -101,7 +103,7 @@ public class AppsflyerModule
                 : AppsflyerRequestType.SESSION_REQUEST;
 
         // post the request via Unity http client
-        _ = SendUnityPostReq(req, REQ_TYPE);
+        SendUnityPostReq(req, REQ_TYPE);
     }
 
     public void Stop()
@@ -134,7 +136,7 @@ public class AppsflyerModule
         AppsflyerRequestType REQ_TYPE = AppsflyerRequestType.INAPP_EVENT_REQUEST;
 
         // post the request via Unity http client
-        _ = SendUnityPostReq(req, REQ_TYPE);
+        SendUnityPostReq(req, REQ_TYPE);
     }
 
     public bool IsInstallOlderThanDate(string date)
@@ -173,7 +175,7 @@ public class AppsflyerModule
     }
 
     // send post request with Unity HTTP Client
-    private async Task SendUnityPostReq(RequestData req, AppsflyerRequestType REQ_TYPE)
+    private async void SendUnityPostReq(RequestData req, AppsflyerRequestType REQ_TYPE)
     {
         // serialize the json and remove empty fields
         string json = JsonConvert.SerializeObject(
